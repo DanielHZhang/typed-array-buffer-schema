@@ -32,7 +32,7 @@ describe('simple test', () => {
   test('should convert as many time as possible', () => {
     const hrstart = process.hrtime();
 
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 10000; i++) {
       buffer = SnapshotModel.toBuffer(data);
       data = SnapshotModel.fromBuffer(buffer);
     }

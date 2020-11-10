@@ -1,7 +1,6 @@
 import {Schema} from './schema';
 import {uint8} from './views';
 import {Lib} from './lib';
-// import set from 'lodash/set';
 
 const set = (obj: Record<any, any>, path: (string | number)[] | string, value: any) => {
   if (Object(obj) !== obj) {
@@ -11,21 +10,21 @@ const set = (obj: Record<any, any>, path: (string | number)[] | string, value: a
   if (!Array.isArray(path)) {
     path = path.toString().match(/[^.[\]]+/g) || [];
   }
-  path.slice(0, -1).reduce((
-    object,
-    current,
-    index // Iterate all of them except the last one
-  ) => {
+
+  let curObj = obj; // Hold reference to the current nested object
+  for (let i = 0; i < path.length - 1; i++) {
+    const curPath = path[i];
     // Does the key exist and is its value an object?
-    if (Object(object[current]) !== object[current]) {
+    if (Object(curObj[curPath]) !== curObj[curPath]) {
       // No: create the key. Is the next key a potential array-index?
-      object[current] =
-        Math.abs(path[index + 1] as number) >> 0 === +path[index + 1]
+      curObj[curPath] =
+        Math.abs(path[i + 1] as number) >> 0 === +path[i + 1]
           ? [] // Yes: assign a new array object
           : {}; // No: assign a new plain object
     }
-    return object[current];
-  }, obj)[path[path.length - 1]] = value; // Finally assign the value to the last key
+    curObj = curObj[curPath];
+  }
+  curObj[path[path.length - 1]] = value; // Finally assign the value to the last key
 
   return obj; // Return the top-level object to allow chaining
 };

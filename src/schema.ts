@@ -1,11 +1,11 @@
-//var property
+// var property
 
-export class Schema {
-  private _bytes: number = 0
+export class Schema<T = any> {
+  private _bytes: number = 0;
 
   constructor(private _id: string, private _name: string, private _struct: Object) {
-    Schema.Validation(_struct)
-    this.calcBytes()
+    Schema.Validation(_struct);
+    this.calcBytes();
   }
 
   public static Validation(struct: Object) {
@@ -13,45 +13,45 @@ export class Schema {
   }
 
   public get id() {
-    return this._id
+    return this._id;
   }
 
   public get name() {
-    return this._name
+    return this._name;
   }
 
   private calcBytes() {
     const iterate = (obj: any) => {
       for (var property in obj) {
-        const type = obj?._type || obj?.type?._type
-        const bytes = obj._bytes || obj.type?._bytes
+        const type = obj?._type || obj?.type?._type;
+        const bytes = obj._bytes || obj.type?._bytes;
 
         if (!type && obj.hasOwnProperty(property)) {
           if (typeof obj[property] === 'object') {
-            iterate(obj[property])
+            iterate(obj[property]);
           }
         } else {
-          if (property !== '_type' && property !== 'type') return
-          if (!bytes) return
+          if (property !== '_type' && property !== 'type') return;
+          if (!bytes) return;
 
           // we multiply the bytes by the String8 / String16 length.
           if (type === 'String8' || type === 'String16') {
-            const length = obj.length || 12
-            this._bytes += bytes * length
+            const length = obj.length || 12;
+            this._bytes += bytes * length;
           } else {
-            this._bytes += bytes
+            this._bytes += bytes;
           }
         }
       }
-    }
-    iterate(this._struct)
+    };
+    iterate(this._struct);
   }
 
   public get struct() {
-    return this._struct
+    return this._struct;
   }
 
   public get bytes() {
-    return this._bytes
+    return this._bytes;
   }
 }

@@ -1,4 +1,4 @@
-import {BufferSchema, Model, uint8, int16, uint16} from '../src/index';
+import {BufferSchema, Model, uint8, int16, uint16, uint32} from '../src/index';
 
 describe('simple test', () => {
   const castleSchema = BufferSchema.schema('castle', {

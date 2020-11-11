@@ -30,3 +30,19 @@ export function set(obj: Record<any, any>, path: (string | number)[] | string, v
 
   return obj; // Return the top-level object to allow chaining
 }
+
+/**
+ * Convert a string to a hash.
+ * See: https://stackoverflow.com/a/7616484/12656855
+ * @param s
+ */
+export function stringToHash(s: string) {
+  let hash = 0;
+  for (let i = 0; i < s.length; i++) {
+    const chr = s.charCodeAt(i);
+    hash = (hash << 5) - hash + chr;
+    hash |= 0; // Convert to 32bit integer
+  }
+  hash *= 254785; // times a random number
+  return Math.abs(hash).toString(32).slice(2, 6);
+}

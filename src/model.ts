@@ -1,13 +1,19 @@
 import {Schema} from './schema';
-import {BufferSchema} from './lib';
+import {BufferSchema} from './buffer-schema';
 import {set} from './utils';
 
 export class Model<T> {
-  protected _buffer: ArrayBuffer = new ArrayBuffer(0);
-  protected _dataView: DataView = new DataView(this._buffer);
-  protected _bytes: number = 0;
+  public schema: Schema<T>;
+  protected _buffer: ArrayBuffer;
+  protected _dataView: DataView;
+  protected _bytes: number;
 
-  constructor(public schema: Schema) {}
+  constructor(schema: Schema<T>) {
+    this._bytes = 0;
+    this._buffer = new ArrayBuffer(this._bytes);
+    this._dataView = new DataView(this._buffer);
+    this.schema = schema;
+  }
 
   public refresh() {
     this._buffer = new ArrayBuffer(8 * 1024);

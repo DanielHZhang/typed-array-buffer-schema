@@ -43,7 +43,9 @@
   "homepage": "http://geckos.io",
   "dependencies": {},
   "devDependencies": {
+    "@supersede/eslint-config": "^1.1.2",
     "@supersede/prettier-config": "^1.0.1",
+    "eslint": "^7.13.0",
     "jest": "^26.1.0",
     "prettier": "^2.0.5",
     "rimraf": "^3.0.2",

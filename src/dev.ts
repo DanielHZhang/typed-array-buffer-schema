@@ -22,6 +22,9 @@ const mainSchema = BufferSchema.schema('snapshot', {
   towers: [towerSchema],
 });
 
+const someSchema = BufferSchema.schema('wow', {cool: uint8});
+const someModel = new Model(someSchema);
+
 const gameState = {
   time: new Date().getTime(),
   tick: 32580,

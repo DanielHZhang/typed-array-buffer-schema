@@ -1,22 +1,30 @@
-import {BufferSchema, Model, uint8, int8, int16, uint16} from '../src/index';
+import {performance} from 'perf_hooks';
+import {Model, uint8, int16, uint16} from '../src/index';
+import {ExtractModel} from '../src/types';
 
-describe('simple test', () => {
-  const playerSchema = BufferSchema.schema('player', {
-    id: int8,
+describe('Benchmark', () => {
+  type Player = {id: number; x: number; y: number};
+
+  const playerModel = Model.fromSchemaDefinition<Player>('player', {
+    id: uint8,
     x: int16,
     y: int16,
   });
 
-  const snapshotSchema = BufferSchema.schema('snapshot', {
+  type AlternatePlayer = ExtractModel<typeof playerModel>;
+  type Snapshot = {
+    time: number;
+    data: {players: Player[]};
+  };
+
+  const snapshotModel = Model.fromSchemaDefinition<Snapshot>('snapshot', {
     time: uint16,
     data: {
-      players: [playerSchema],
+      players: [playerModel.schema],
     },
   });
 
-  const SnapshotModel = new Model(snapshotSchema);
-
-  const snap = {
+  const snap: Snapshot = {
     time: 1234,
     data: {
       players: [
@@ -26,24 +34,23 @@ describe('simple test', () => {
     },
   };
 
-  let buffer;
+  let buffer: ArrayBuffer;
   let data = snap;
 
-  test('should convert as many time as possible', () => {
-    const hrstart = process.hrtime();
+  it('Should be as performant as possible', () => {
+    const iterations = 10000;
 
-    for (let i = 0; i < 10000; i++) {
-      buffer = SnapshotModel.toBuffer(data);
-      data = SnapshotModel.fromBuffer(buffer);
+    const perfStart = performance.now();
+
+    for (let i = 0; i < iterations; i++) {
+      buffer = snapshotModel.toBuffer(data);
+      data = snapshotModel.fromBuffer(buffer);
     }
 
-    const hrend = process.hrtime(hrstart);
+    const perfEnd = performance.now();
+    const delta = perfEnd - perfStart;
+    console.log(`Execution time: ${delta}`);
 
-    console.info('Execution time (hr): %ds %dms', hrend[0], hrend[1] / 1000000);
-
-    const dataL = JSON.stringify(data).length;
-    const snapL = JSON.stringify(snap).length;
-
-    expect(dataL).toBe(snapL);
+    expect(JSON.stringify(data).length).toBe(JSON.stringify(snap).length);
   });
 });

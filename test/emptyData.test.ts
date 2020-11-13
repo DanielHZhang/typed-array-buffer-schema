@@ -1,19 +1,19 @@
-import {BufferSchema, Model, uint8, int16, uint16} from '../src/index';
+import {Model, uint8, int16, uint16} from '../src/index';
 
 describe('simple test', () => {
-  const playerSchema = BufferSchema.schema('player', {
+  const playerSchema = Model.schema('player', {
     id: uint8,
   });
 
-  const botSchema = BufferSchema.schema('bot', {
+  const botSchema = Model.schema('bot', {
     id: uint8,
   });
 
-  const carSchema = BufferSchema.schema('car', {
+  const carSchema = Model.schema('car', {
     id: uint8,
   });
 
-  const snapshotSchema = BufferSchema.schema('snapshot', {
+  const snapshotSchema = Model.schema('snapshot', {
     time: uint16,
     data: {
       emptyArr: [playerSchema],

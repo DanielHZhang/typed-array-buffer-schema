@@ -4,7 +4,11 @@
  * @param path
  * @param value
  */
-export function set(obj: Record<any, any>, path: (string | number)[] | string, value: any) {
+export function set(
+  obj: Record<any, any>,
+  path: (string | number)[] | string,
+  value: any
+): Record<any, any> {
   if (Object(obj) !== obj) {
     return obj; // When obj is not an object
   }
@@ -36,7 +40,7 @@ export function set(obj: Record<any, any>, path: (string | number)[] | string, v
  * See: https://stackoverflow.com/a/7616484/12656855
  * @param s
  */
-export function stringToHash(s: string) {
+export function stringToHash(s: string): string {
   let hash = 0;
   for (let i = 0; i < s.length; i++) {
     const chr = s.charCodeAt(i);

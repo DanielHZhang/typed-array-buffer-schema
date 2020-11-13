@@ -1,5 +1,4 @@
 import {
-  BufferSchema,
   Model,
   int8,
   uint8,
@@ -14,9 +13,11 @@ import {
   string8,
   string16,
 } from '../src/index';
+import {Schema} from '../src/schema';
 
 describe('dataViews test', () => {
-  const playerSchema = BufferSchema.schema('player', {
+  type Player = typeof snap['players'][number];
+  const playerSchema = new Schema<Player>('player', {
     a: int8,
     b: uint8,
     c: int16,
@@ -31,12 +32,12 @@ describe('dataViews test', () => {
     kk: {type: string8, length: 24},
     l: string16,
   });
+  const playerModel = new Model(playerSchema);
 
-  const snapshotSchema = BufferSchema.schema('snapshot', {
+  type Snapshot = {players: Player[]};
+  const snapshotModel = Model.fromSchemaDefinition<Snapshot>('snapshot', {
     players: [playerSchema],
   });
-
-  const SnapshotModel = new Model(snapshotSchema);
 
   const now = new Date().getTime();
 
@@ -60,12 +61,12 @@ describe('dataViews test', () => {
     ],
   };
 
-  let buffer;
+  let buffer: ArrayBuffer;
   let data = snap;
 
   test('should convert successfully', () => {
-    buffer = SnapshotModel.toBuffer(data);
-    data = SnapshotModel.fromBuffer(buffer);
+    buffer = snapshotModel.toBuffer(data);
+    data = snapshotModel.fromBuffer(buffer);
 
     expect(data.players[0].g).toBe(now);
     expect(data.players[0].h).toBe(now);

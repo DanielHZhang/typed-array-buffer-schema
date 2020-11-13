@@ -150,30 +150,37 @@ export class Model<T> {
   }
 
   public fromBuffer(buffer: ArrayBuffer): T {
-    // 35 is #
-    // check where, in the buffer, the schemas are
+    const view = new DataView(buffer);
+    // const int8 = Array.from(new Int8Array(buffer));
+    const int8 = new Int8Array(buffer);
+
+    // console.log('what do i get here:', hw.indexOf(35));
+
+    // console.log('VIEW GET INT AT INDEX 35', view.getInt8(35));
+    // console.log('WHAT:', int8.indexOf(35, 0));
+
+    // Check where the schemas are in the buffer
     let index = 0;
     const indexes: number[] = [];
 
-    const view = new DataView(buffer);
-    const int8 = Array.from(new Int8Array(buffer));
-
     while (index > -1) {
-      index = int8.indexOf(35, index);
+      index = int8.indexOf(35, index); // charCode for '#' is 35
       if (index !== -1) {
         indexes.push(index);
         index++;
       }
     }
+
+    console.log('indexes:', indexes);
+
     // get the schema ids
-    const schemaIds: string[] = [];
-    indexes.forEach((index) => {
+    const schemaIds = indexes.map((index) => {
       let id = '';
       for (let i = 0; i < 5; i++) {
         const char = String.fromCharCode(int8[index + i]);
         id += char;
       }
-      schemaIds.push(id);
+      return id;
     });
 
     // assemble all info about the schemas we need

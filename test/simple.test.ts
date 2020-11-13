@@ -1,12 +1,12 @@
-import {BufferSchema, Model, uint8, int16, uint16, uint32} from '../src/index';
+import {Model, uint8, int16, uint16, Schema} from '../src/index';
 
-describe('simple test', () => {
-  const castleSchema = BufferSchema.schema('castle', {
+describe('Simple real-world test', () => {
+  const castleSchema = new Schema('castle', {
     id: uint8,
     health: uint8,
   });
 
-  const playerSchema = BufferSchema.schema('player', {
+  const playerSchema = new Schema('player', {
     id: uint8,
     // x: { type: int16, digits: 2 },
     // y: { type: int16, digits: 2 },
@@ -14,17 +14,19 @@ describe('simple test', () => {
     y: int16,
   });
 
-  const listSchema = BufferSchema.schema('list', {
+  const listSchema = new Schema('list', {
     value: uint8,
   });
 
-  const snapshotSchema = BufferSchema.schema('snapshot', {
+  const snapshotModel = Model.fromSchemaDefinition('snapshot', {
     time: uint16,
     single: uint8,
-    data: {list: [listSchema], players: [playerSchema], castles: [castleSchema]},
+    data: {
+      list: [listSchema],
+      players: [playerSchema],
+      castles: [castleSchema],
+    },
   });
-
-  const SnapshotModel = new Model(snapshotSchema);
 
   const snap = {
     time: 1234,
@@ -55,7 +57,7 @@ describe('simple test', () => {
   });
 
   test('should return a buffer', () => {
-    buffer = SnapshotModel.toBuffer(snap);
+    buffer = snapshotModel.toBuffer(snap);
     const uint8 = new Uint8Array(buffer);
 
     expect(typeof buffer).toBe('object');
@@ -63,7 +65,7 @@ describe('simple test', () => {
   });
 
   test('should fromBuffer', () => {
-    data = SnapshotModel.fromBuffer(buffer);
+    data = snapshotModel.fromBuffer(buffer);
 
     expect(data.time).toBe(1234);
     expect(data.data.players[0].x).toBe(145);

@@ -16,6 +16,7 @@
     "bundle": "webpack --config webpack.bundle.js",
     "test": "jest",
     "test:coverage": "jest  --collectCoverage",
+    "test:one": "jest -t",
     "test:watch": "jest --watch",
     "clean": "rimraf lib",
     "format": "prettier --write src/**/*.ts",

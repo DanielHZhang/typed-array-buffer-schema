@@ -1,5 +1,5 @@
 import {Schema} from './schema';
-import {set} from './utils';
+import {flatten, set} from './utils';
 import type {SchemaDefinition} from './types';
 
 export class Model<T> {
@@ -10,12 +10,12 @@ export class Model<T> {
   protected _bytes: number;
 
   public constructor(schema: Schema<T>) {
-    Model._schemas.set(schema.id, schema);
-
     this._bytes = 0;
     this._buffer = new ArrayBuffer(this._bytes);
     this._dataView = new DataView(this._buffer);
     this._schema = schema;
+
+    Model._schemas.set(schema.id, schema);
   }
 
   public static fromSchemaDefinition<T extends Record<string, any>>(
@@ -27,6 +27,10 @@ export class Model<T> {
     return newModel;
   }
 
+  /**
+   * Get a model's ID from an ArrayBuffer.
+   * @param buffer
+   */
   public static getIdFromBuffer(buffer: ArrayBuffer): string {
     const dataView = new DataView(buffer);
     let id = '';
@@ -37,6 +41,9 @@ export class Model<T> {
     return id;
   }
 
+  /**
+   * Get the schema definition.
+   */
   public get schema(): Schema {
     return this._schema;
   }
@@ -48,138 +55,93 @@ export class Model<T> {
     return this._schema.id;
   }
 
-  // TODO
-  public flatten(schema: any, data: any): any[] {
-    const flat: any[] = [];
-
-    // https://stackoverflow.com/a/15589677/12656855
-    const flatten = (schema: any, data: any) => {
-      // add the schema id to flat[] (its a String8 with 5 characters, the first char is #)
-      if (schema?._id) {
-        flat.push({d: schema._id, t: 'String8'});
-      } else if (schema?.[0]?._id) {
-        flat.push({d: schema[0]._id, t: 'String8'});
-      }
-
-      // if it is a schema
-      if (schema?._struct) {
-        schema = schema._struct;
-      }
-      // if it is a schema[]
-      else if (schema?.[0]?._struct) {
-        schema = schema[0]._struct;
-      }
-
-      // console.log('-------')
-      // console.log('schema', typeof schema, schema)
-      // console.log('data', typeof data, data)
-
-      for (const property in data) {
-        if (Object.prototype.hasOwnProperty.call(data, property)) {
-          if (typeof data[property] === 'object') {
-            // if data is array, but schemas is flat, use index 0 on the next iteration
-            if (Array.isArray(data)) {
-              flatten(schema, data[parseInt(property, 10)]);
-            } else {
-              flatten(schema[property], data[property]);
-            }
-          } else {
-            // handle special types e.g.:  "x: { type: int16, digits: 2 }"
-            if (schema[property]?.type?._type) {
-              if (schema[property]?.digits) {
-                data[property] *= Math.pow(10, schema[property].digits);
-                data[property] = parseInt(data[property].toFixed(0), 10);
-              }
-              if (schema[property]?.length) {
-                const length = schema[property]?.length;
-                data[property] = this.cropString(data[property], length);
-              }
-              flat.push({d: data[property], t: schema[property].type._type});
-            } else {
-              // crop strings to default lenght of 12 characters if nothing else is specified
-              if (schema[property]._type === 'String8' || schema[property]._type === 'String16') {
-                data[property] = this.cropString(data[property], 12);
-              }
-              flat.push({d: data[property], t: schema[property]._type});
-            }
-          }
-        }
-      }
-    };
-
-    flatten(schema, data);
-
-    return flat;
+  public flatten(schema: Schema<T>, data: any): {d: any; t: string}[] {
+    const accumulator: any[] = [];
+    flatten(schema, data, accumulator);
+    console.log('accumulator after flatten:', accumulator);
+    return accumulator;
   }
 
   public toBuffer(worldState: T): ArrayBuffer {
-    // deep clone the worldState
-    const data = JSON.parse(JSON.stringify(worldState));
-
     this.refresh();
 
+    // deep clone the worldState
+    const data = JSON.parse(JSON.stringify(worldState));
     const flat = this.flatten(this._schema, data);
 
-    // to buffer
-    flat.forEach((f: any, i: number) => {
-      if (f.t === 'String8') {
-        for (let j = 0; j < f.d.length; j++) {
-          this._dataView.setUint8(this._bytes, f.d[j].charCodeAt(0));
+    for (let i = 0; i < flat.length; i++) {
+      const item = flat[i];
+      switch (item.t) {
+        case 'String8': {
+          for (let j = 0; j < item.d.length; j++) {
+            this._dataView.setUint8(this._bytes, (item.d as string)[j].charCodeAt(0));
+            this._bytes++;
+          }
+          continue;
+        }
+        case 'String16': {
+          for (let j = 0; j < item.d.length; j++) {
+            this._dataView.setUint16(this._bytes, (item.d as string)[j].charCodeAt(0));
+            this._bytes += 2;
+          }
+          continue;
+        }
+        case 'Int8Array': {
+          this._dataView.setInt8(this._bytes, item.d);
           this._bytes++;
+          continue;
         }
-      }
-      if (f.t === 'String16') {
-        for (let j = 0; j < f.d.length; j++) {
-          this._dataView.setUint16(this._bytes, f.d[j].charCodeAt(0));
+        case 'Uint8Array': {
+          this._dataView.setUint8(this._bytes, item.d);
+          this._bytes++;
+          continue;
+        }
+        case 'Int16Array': {
+          this._dataView.setInt16(this._bytes, item.d);
           this._bytes += 2;
+          continue;
+        }
+        case 'Uint16Array': {
+          this._dataView.setUint16(this._bytes, item.d);
+          this._bytes += 2;
+          continue;
+        }
+        case 'Int32Array': {
+          this._dataView.setInt32(this._bytes, item.d);
+          this._bytes += 4;
+          continue;
+        }
+        case 'Uint32Array': {
+          this._dataView.setUint32(this._bytes, item.d);
+          this._bytes += 4;
+          continue;
+        }
+        case 'BigInt64Array': {
+          this._dataView.setBigInt64(this._bytes, BigInt(item.d));
+          this._bytes += 8;
+          continue;
+        }
+        case 'BigUint64Array': {
+          this._dataView.setBigUint64(this._bytes, BigInt(item.d));
+          this._bytes += 8;
+          continue;
+        }
+        case 'Float32Array': {
+          this._dataView.setFloat32(this._bytes, item.d);
+          this._bytes += 4;
+          continue;
+        }
+        case 'Float64Array': {
+          this._dataView.setFloat64(this._bytes, item.d);
+          this._bytes += 8;
         }
       }
-      if (f.t === 'Int8Array') {
-        this._dataView.setInt8(this._bytes, f.d);
-        this._bytes++;
-      }
-      if (f.t === 'Uint8Array') {
-        this._dataView.setUint8(this._bytes, f.d);
-        this._bytes++;
-      }
-      if (f.t === 'Int16Array') {
-        this._dataView.setInt16(this._bytes, f.d);
-        this._bytes += 2;
-      }
-      if (f.t === 'Uint16Array') {
-        this._dataView.setUint16(this._bytes, f.d);
-        this._bytes += 2;
-      }
-      if (f.t === 'Int32Array') {
-        this._dataView.setInt32(this._bytes, f.d);
-        this._bytes += 4;
-      }
-      if (f.t === 'Uint32Array') {
-        this._dataView.setUint32(this._bytes, f.d);
-        this._bytes += 4;
-      }
-      if (f.t === 'BigInt64Array') {
-        this._dataView.setBigInt64(this._bytes, BigInt(f.d));
-        this._bytes += 8;
-      }
-      if (f.t === 'BigUint64Array') {
-        this._dataView.setBigUint64(this._bytes, BigInt(f.d));
-        this._bytes += 8;
-      }
-      if (f.t === 'Float32Array') {
-        this._dataView.setFloat32(this._bytes, f.d);
-        this._bytes += 4;
-      }
-      if (f.t === 'Float64Array') {
-        this._dataView.setFloat64(this._bytes, f.d);
-        this._bytes += 8;
-      }
-    });
+    }
 
     const newBuffer = new ArrayBuffer(this._bytes);
     const view = new DataView(newBuffer);
 
-    // copy all data to a new (resized) ArrayBuffer
+    // copy all data to a new resized ArrayBuffer
     for (let i = 0; i < this._bytes; i++) {
       view.setUint8(i, this._dataView.getUint8(i));
     }
@@ -412,14 +374,5 @@ export class Model<T> {
     this._buffer = new ArrayBuffer(8 * 1024);
     this._dataView = new DataView(this._buffer);
     this._bytes = 0;
-  }
-
-  /**
-   * Add empty spaces to the end of the string
-   * @param str
-   * @param length
-   */
-  private cropString(str: string, length: number) {
-    return str.padEnd(length, ' ').slice(0, length);
   }
 }

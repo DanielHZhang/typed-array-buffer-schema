@@ -1,9 +1,7 @@
-// var property
-
 import {SchemaDefinition} from './types';
 import {stringToHash} from './utils';
 
-export class Schema<T = any> {
+export class Schema<T = Record<string, any>> {
   private _bytes: number = 0;
   private _id: string;
   private _name: string;

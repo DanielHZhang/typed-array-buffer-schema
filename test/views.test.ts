@@ -15,7 +15,7 @@ import {
 } from '../src/index';
 import {Schema} from '../src/schema';
 
-describe('dataViews test', () => {
+describe('TypedArrayView', () => {
   type Player = typeof snap['players'][number];
   const playerSchema = new Schema<Player>('player', {
     a: int8,
@@ -32,7 +32,6 @@ describe('dataViews test', () => {
     kk: {type: string8, length: 24},
     l: string16,
   });
-  const playerModel = new Model(playerSchema);
 
   type Snapshot = {players: Player[]};
   const snapshotModel = Model.fromSchemaDefinition<Snapshot>('snapshot', {
@@ -40,7 +39,6 @@ describe('dataViews test', () => {
   });
 
   const now = new Date().getTime();
-
   const snap = {
     players: [
       {
@@ -64,9 +62,11 @@ describe('dataViews test', () => {
   let buffer: ArrayBuffer;
   let data = snap;
 
-  test('should convert successfully', () => {
+  it('Should serialize and deserialize with all view types', () => {
     buffer = snapshotModel.toBuffer(data);
     data = snapshotModel.fromBuffer(buffer);
+
+    console.log('data:', data);
 
     expect(data.players[0].g).toBe(now);
     expect(data.players[0].h).toBe(now);

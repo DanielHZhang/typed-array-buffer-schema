@@ -66,12 +66,53 @@ describe('TypedArrayView', () => {
     buffer = snapshotModel.toBuffer(data);
     data = snapshotModel.fromBuffer(buffer);
 
-    console.log('data:', data);
+    // console.log('data:', data);
 
     expect(data.players[0].g).toBe(now);
     expect(data.players[0].h).toBe(now);
     expect(data.players[0].k).toBe('This line is');
     expect(data.players[0].kk.trim()).toBe('This line is too long.');
     expect(data.players[0].l).toBe('Эта строка с');
+  });
+
+  it('Should serialize and deserialize properly with arrays', () => {
+    const stateSlice = new Schema('slice', {
+      x: uint8,
+      y: uint32,
+    });
+
+    const secondSlice = new Schema('slice2', {
+      a: uint16,
+      b: int8,
+    });
+
+    const test = Model.fromSchemaDefinition('w', {
+      slices: [stateSlice],
+      secondSlices: [secondSlice],
+    });
+
+    const exampleState = {
+      slices: [
+        {
+          x: 0,
+          y: 1,
+        },
+        {
+          y: 6,
+          x: 5,
+        },
+      ],
+      secondSlices: [
+        {
+          a: 10,
+          b: 2,
+        },
+      ],
+    };
+
+    const serialized = test.toBuffer(exampleState);
+    const deserialized = test.fromBuffer(serialized);
+
+    // expect().toBe(now);
   });
 });

@@ -3,7 +3,6 @@ import {flatten, set} from './utils';
 import type {SchemaDefinition} from './types';
 
 export class Model<T> {
-  private static _schemas: Map<string, Schema> = new Map();
   protected _schema: Schema<T>;
   protected _buffer: ArrayBuffer;
   protected _dataView: DataView;
@@ -14,8 +13,6 @@ export class Model<T> {
     this._buffer = new ArrayBuffer(this._bytes);
     this._dataView = new DataView(this._buffer);
     this._schema = schema;
-
-    Model._schemas.set(schema.id, schema);
   }
 
   public static fromSchemaDefinition<T extends Record<string, any>>(
@@ -58,7 +55,6 @@ export class Model<T> {
   public flatten(schema: Schema<T>, data: any): {d: any; t: string}[] {
     const accumulator: any[] = [];
     flatten(schema, data, accumulator);
-    console.log('accumulator after flatten:', accumulator);
     return accumulator;
   }
 
@@ -149,32 +145,50 @@ export class Model<T> {
     return newBuffer;
   }
 
+  private populateData = (obj: any, key: any, value: any, path: string = '', isArray = false) => {
+    if (obj?._id && obj._id === key) {
+      const p = path.replace(/_struct\./, '').replace(/\.$/, '');
+      // if it is a schema[], but only has one set, we manually have to make sure it transforms to an array
+      if (isArray && !Array.isArray(value)) {
+        value = [value];
+      }
+      // '' is the top level
+      if (p === '') {
+        data = {...data, ...value};
+      } else {
+        set(data, p, value);
+      }
+    } else {
+      for (const props in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, props)) {
+          if (typeof obj[props] === 'object') {
+            const p = Array.isArray(obj) ? '' : `${props}.`;
+            this.populateData(obj[props], key, value, path + p, Array.isArray(obj));
+          }
+          // obj
+        }
+      }
+    }
+  };
+
   public fromBuffer(buffer: ArrayBuffer): T {
     const view = new DataView(buffer);
-    // const int8 = Array.from(new Int8Array(buffer));
     const int8 = new Int8Array(buffer);
 
-    // console.log('what do i get here:', hw.indexOf(35));
-
-    // console.log('VIEW GET INT AT INDEX 35', view.getInt8(35));
-    // console.log('WHAT:', int8.indexOf(35, 0));
-
-    // Check where the schemas are in the buffer
+    // Find the schema id indexes in the buffer
     let index = 0;
-    const indexes: number[] = [];
+    const idIndexes: number[] = [];
 
     while (index > -1) {
       index = int8.indexOf(35, index); // charCode for '#' is 35
       if (index !== -1) {
-        indexes.push(index);
+        idIndexes.push(index);
         index++;
       }
     }
 
-    console.log('indexes:', indexes);
-
-    // get the schema ids
-    const schemaIds = indexes.map((index) => {
+    // Read the buffer at the indexes to get the schema ids
+    const schemaIds = idIndexes.map((index) => {
       let id = '';
       for (let i = 0; i < 5; i++) {
         const char = String.fromCharCode(int8[index + i]);
@@ -183,192 +197,64 @@ export class Model<T> {
       return id;
     });
 
-    // assemble all info about the schemas we need
-    const schemas: {id: string; schema: any; startsAt: number}[] = [];
-    schemaIds.forEach((id, i) => {
-      // check if the schemaId exists
-      // (this can be, for example, if charCode 35 is not really a #)
-      const schemaId = Model._schemas.get(id);
-      if (schemaId) {
-        schemas.push({id, schema: Model._schemas.get(id), startsAt: indexes[i] + 5});
+    // Assemble schema information
+    const schemas: Schema[] = [];
+    for (let i = 0; i < schemaIds.length; i++) {
+      // Ensure that the Schema with the specified id exists in our instance map
+      const schema = Schema.getInstanceById(schemaIds[i]);
+      if (schema) {
+        schema.startsAt = idIndexes[i] + 5;
+        schemas.push(schema);
       }
-    });
-    // schemas[] contains now all the schemas we need to fromBuffer the bufferArray
+    }
 
-    // lets begin the serialization
     let data: any = {}; // holds all the data we want to give back
-    let bytes = 0; // the current bytes of arrayBuffer iteration
+    const bytesRef = {bytes: 0}; // The current byte position of the ArrayBuffer
     const dataPerSchema: any = {};
 
-    const deserializeSchema = (struct: any) => {
-      let data = {};
-      if (typeof struct === 'object') {
-        for (const property in struct) {
-          if (Object.prototype.hasOwnProperty.call(struct, property)) {
-            const prop = struct[property];
-
-            // handle specialTypes e.g.:  "x: { type: int16, digits: 2 }"
-            let specialTypes;
-            if (prop?.type?._type && prop?.type?._bytes) {
-              specialTypes = prop;
-              prop._type = prop.type._type;
-              prop._bytes = prop.type._bytes;
-            }
-
-            if (prop?._type && prop?._bytes) {
-              const _type = prop._type;
-              const _bytes = prop._bytes;
-              let value;
-
-              if (_type === 'String8') {
-                value = '';
-                const length = prop.length || 12;
-                for (let i = 0; i < length; i++) {
-                  const char = String.fromCharCode(view.getUint8(bytes));
-                  value += char;
-                  bytes++;
-                }
-              }
-              if (_type === 'String16') {
-                value = '';
-                const length = prop.length || 12;
-                for (let i = 0; i < length; i++) {
-                  const char = String.fromCharCode(view.getUint16(bytes));
-                  value += char;
-                  bytes += 2;
-                }
-              }
-              if (_type === 'Int8Array') {
-                value = view.getInt8(bytes);
-                bytes += _bytes;
-              }
-              if (_type === 'Uint8Array') {
-                value = view.getUint8(bytes);
-                bytes += _bytes;
-              }
-              if (_type === 'Int16Array') {
-                value = view.getInt16(bytes);
-                bytes += _bytes;
-              }
-              if (_type === 'Uint16Array') {
-                value = view.getUint16(bytes);
-                bytes += _bytes;
-              }
-              if (_type === 'Int32Array') {
-                value = view.getInt32(bytes);
-                bytes += _bytes;
-              }
-              if (_type === 'Uint32Array') {
-                value = view.getUint32(bytes);
-                bytes += _bytes;
-              }
-              if (_type === 'BigInt64Array') {
-                value = parseInt(view.getBigInt64(bytes).toString());
-                bytes += _bytes;
-              }
-              if (_type === 'BigUint64Array') {
-                value = parseInt(view.getBigUint64(bytes).toString());
-                bytes += _bytes;
-              }
-              if (_type === 'Float32Array') {
-                value = view.getFloat32(bytes);
-                bytes += _bytes;
-              }
-              if (_type === 'Float64Array') {
-                value = view.getFloat64(bytes);
-                bytes += _bytes;
-              }
-
-              // apply special types options
-              if (typeof value === 'number' && specialTypes?.digits) {
-                value *= Math.pow(10, -specialTypes.digits);
-                value = parseFloat(value.toFixed(specialTypes.digits));
-              }
-
-              data = {...data, [property]: value};
-            }
-          }
-        }
-      }
-      return data;
-    };
-
-    schemas.forEach((s, i) => {
-      const struct = s.schema?.struct;
-      const start = s.startsAt;
+    for (let i = 0; i < schemas.length; i++) {
+      const schema = schemas[i];
+      const next = schemas[i + 1];
       let end = buffer.byteLength;
-      const id = s.schema?.id || 'XX';
-
-      if (id === 'XX') {
-        console.error('ERROR: Something went horribly wrong!');
+      if (next?.startsAt) {
+        end = next.startsAt - 5;
       }
 
-      try {
-        end = schemas[i + 1].startsAt - 5;
-      } catch {}
+      console.log('what is the schema:', schema);
 
       // TOOD(yandeu) bytes is not accurate since it includes child schemas
-      const length = s.schema?.bytes || 1;
-      // determine how many iteration we have to make in this schema
-      // the players array maybe contains 5 player, so we have to make 5 iterations
-      const iterations = (end - start) / length;
+      const length = schema.bytes || 1;
+
+      // Determine the number of iterations for an array of items (e.g. 5 objects = 5 iterations)
+      const iterations = Math.floor((end - schema.startsAt!) / length);
 
       for (let i = 0; i < iterations; i++) {
-        bytes = start + i * length;
+        bytesRef.bytes = schema.startsAt! + i * length;
         // gets the data from this schema
-        const schemaData = deserializeSchema(struct);
+        const schemaData = schema.deserialize(view, bytesRef);
 
         if (iterations <= 1) {
-          dataPerSchema[id] = {...schemaData};
+          dataPerSchema[schema.id] = {...schemaData};
         } else {
-          if (typeof dataPerSchema[id] === 'undefined') {
-            dataPerSchema[id] = [];
+          if (typeof dataPerSchema[schema.id] === 'undefined') {
+            dataPerSchema[schema.id] = [];
           }
-          dataPerSchema[id].push(schemaData);
+          dataPerSchema[schema.id].push(schemaData);
         }
       }
-    });
+    }
+
+    console.log('data:', data);
+    console.log('data per schema:', dataPerSchema);
+    return;
 
     // add dataPerScheme to data
     data = {};
 
-    const populateData = (obj: any, key: any, value: any, path: string = '', isArray = false) => {
-      if (obj?._id && obj._id === key) {
-        const p = path.replace(/_struct\./, '').replace(/\.$/, '');
-        // if it is a schema[], but only has one set, we manually have to make sure it transforms to an array
-        if (isArray && !Array.isArray(value)) {
-          value = [value];
-        }
-        // '' is the top level
-        if (p === '') {
-          data = {...data, ...value};
-        } else {
-          set(data, p, value);
-        }
-      } else {
-        for (const props in obj) {
-          if (Object.prototype.hasOwnProperty.call(obj, props)) {
-            if (typeof obj[props] === 'object') {
-              const p = Array.isArray(obj) ? '' : `${props}.`;
-              populateData(obj[props], key, value, path + p, Array.isArray(obj));
-            }
-            // obj
-          }
-        }
-      }
-    };
-
-    // to it backwards (don't remember why this is needed, but it works without it)
-    // for (let i = Object.keys(dataPerSchema).length - 1; i >= 0; i--) {
-    //   const key = Object.keys(dataPerSchema)[i]
-    //   const value = dataPerSchema[key]
-    //   populateData(this.schema, key, value, '')
-    // }
-
     for (let i = 0; i < Object.keys(dataPerSchema).length; i++) {
       const key = Object.keys(dataPerSchema)[i];
       const value = dataPerSchema[key];
-      populateData(this._schema, key, value, '');
+      this.populateData(this._schema, key, value, '');
     }
 
     return data;

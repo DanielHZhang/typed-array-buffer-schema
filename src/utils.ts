@@ -1,3 +1,5 @@
+import {TypedArrayView} from './types';
+
 /**
  * Implementation of `lodash.set`.
  * @param obj
@@ -58,6 +60,10 @@ export function stringToHash(s: string): string {
  */
 function cropString(str: string, length: number) {
   return str.padEnd(length, ' ').slice(0, length);
+}
+
+export function isTypedArrayView(value: any): value is TypedArrayView {
+  return value && typeof value._type === 'string' && typeof value._bytes === 'number';
 }
 
 /**

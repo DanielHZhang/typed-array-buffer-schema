@@ -60,20 +60,20 @@ describe('TypedArrayView', () => {
   };
 
   let buffer: ArrayBuffer;
-  let data = snap;
+  const data = snap;
 
-  it('Should serialize and deserialize with all view types', () => {
-    buffer = snapshotModel.toBuffer(data);
-    data = snapshotModel.fromBuffer(buffer);
+  // it('Should serialize and deserialize with all view types', () => {
+  //   buffer = snapshotModel.toBuffer(data);
+  //   data = snapshotModel.fromBuffer(buffer);
 
-    // console.log('data:', data);
+  //   // console.log('data:', data);
 
-    expect(data.players[0].g).toBe(now);
-    expect(data.players[0].h).toBe(now);
-    expect(data.players[0].k).toBe('This line is');
-    expect(data.players[0].kk.trim()).toBe('This line is too long.');
-    expect(data.players[0].l).toBe('Эта строка с');
-  });
+  //   expect(data.players[0].g).toBe(now);
+  //   expect(data.players[0].h).toBe(now);
+  //   expect(data.players[0].k).toBe('This line is');
+  //   expect(data.players[0].kk.trim()).toBe('This line is too long.');
+  //   expect(data.players[0].l).toBe('Эта строка с');
+  // });
 
   it('Should serialize and deserialize properly with arrays', () => {
     const stateSlice = new Schema('slice', {
@@ -81,33 +81,47 @@ describe('TypedArrayView', () => {
       y: uint32,
     });
 
+    const innerSlice = new Schema('inner', {
+      wow: string16,
+    });
+
     const secondSlice = new Schema('slice2', {
       a: uint16,
       b: int8,
+      inner: innerSlice,
     });
 
     const test = Model.fromSchemaDefinition('w', {
+      wow: uint8,
       slices: [stateSlice],
-      secondSlices: [secondSlice],
+      secondSlices: {
+        first: [secondSlice],
+      },
     });
 
     const exampleState = {
+      wow: 20,
       slices: [
         {
           x: 0,
           y: 1,
         },
         {
-          y: 6,
           x: 5,
+          y: 6,
         },
       ],
-      secondSlices: [
-        {
-          a: 10,
-          b: 2,
-        },
-      ],
+      secondSlices: {
+        first: [
+          {
+            a: 10,
+            b: 2,
+            inner: {
+              wow: 'cool!',
+            },
+          },
+        ],
+      },
     };
 
     const serialized = test.toBuffer(exampleState);

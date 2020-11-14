@@ -64,6 +64,7 @@ export class Model<T> {
     // deep clone the worldState
     const data = JSON.parse(JSON.stringify(worldState));
     const flat = this.flatten(this._schema, data);
+    console.log('flattened:', flat);
 
     for (let i = 0; i < flat.length; i++) {
       const item = flat[i];
@@ -215,10 +216,7 @@ export class Model<T> {
     for (let i = 0; i < schemas.length; i++) {
       const schema = schemas[i];
       const next = schemas[i + 1];
-      let end = buffer.byteLength;
-      if (next?.startsAt) {
-        end = next.startsAt - 5;
-      }
+      const end = next?.startsAt ? next.startsAt - 5 : buffer.byteLength;
 
       console.log('what is the schema:', schema);
 
@@ -227,10 +225,17 @@ export class Model<T> {
 
       // Determine the number of iterations for an array of items (e.g. 5 objects = 5 iterations)
       const iterations = Math.floor((end - schema.startsAt!) / length);
+      console.log('iterations:', iterations);
 
-      for (let i = 0; i < iterations; i++) {
-        bytesRef.bytes = schema.startsAt! + i * length;
-        // gets the data from this schema
+      // No iterations, this is the root schema or a {prop: Schema}
+      // if (iterations === 0) {
+      //   bytesRef.bytes = schema.startsAt! + length;
+      //   console.log('deserializing iteration 0:', schema.deserialize(view, bytesRef));
+      // }
+
+      for (let j = 0; j < iterations; j++) {
+        bytesRef.bytes = schema.startsAt! + j * length;
+
         const schemaData = schema.deserialize(view, bytesRef);
 
         if (iterations <= 1) {

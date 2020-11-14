@@ -23,7 +23,7 @@ export type TypedArrayDefinition = {
 /**
  * A TypedArray, TypedArrayDefinition, or Schema.
  */
-export type TypedArrayOrSchema = TypedArrayView | TypedArrayDefinition | [Schema];
+export type TypedArrayOrSchema = TypedArrayView | TypedArrayDefinition | Schema | [Schema];
 
 /**
  * Defines a BufferSchema.

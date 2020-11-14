@@ -1,5 +1,5 @@
 import {SchemaDefinition} from './types';
-import {stringToHash} from './utils';
+import {isTypedArrayView, stringToHash} from './utils';
 
 export class Schema<T = Record<string, any>> {
   private static _schemas: Map<string, Schema> = new Map();
@@ -8,6 +8,22 @@ export class Schema<T = Record<string, any>> {
   private _id: string;
   private _name: string;
   private _struct: SchemaDefinition<T>;
+
+  public get id(): string {
+    return this._id;
+  }
+
+  public get name(): string {
+    return this._name;
+  }
+
+  public get struct(): SchemaDefinition<T> {
+    return this._struct;
+  }
+
+  public get bytes(): number {
+    return this._bytes;
+  }
 
   public constructor(name: string, struct: SchemaDefinition<T>) {
     this._name = name;
@@ -34,20 +50,19 @@ export class Schema<T = Record<string, any>> {
     return `#${hash}`;
   }
 
-  public get id(): string {
-    return this._id;
-  }
-
-  public get name(): string {
-    return this._name;
-  }
-
-  public get struct(): SchemaDefinition<T> {
-    return this._struct;
-  }
-
-  public get bytes(): number {
-    return this._bytes;
+  // in the outer schema, call this to reconstruct all the inner schemas
+  public reconstruct(): any {
+    // const reconstructed = {};
+    // const remaining: any[] = [];
+    // // const keys = Object.keys(this.struct);
+    // remaining.push(...Object.values(this._struct));
+    // for (const key in this._struct) {
+    //   const current = this._struct[key];
+    //   if (isTypedArrayView(current)) {
+    //     reconstructed[key] =
+    //   }
+    // }
+    // return reconstructed;
   }
 
   public deserialize(view: DataView, bytesRef: {bytes: number}): any {
